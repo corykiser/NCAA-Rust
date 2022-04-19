@@ -10,8 +10,8 @@ use std::error::Error;
 use std::ffi::OsString;
 use std::fs::File;
 use std::process;
+//use rayon::prelude::*;
 
-#[derive(Debug)]
 struct Game {
     team1: u32,
     team2: u32,
@@ -28,7 +28,6 @@ struct Rounds {
     round3: [[i32; 8]; 2],
     round4: [[i32; 16]; 1],
 }
-
 struct Bracket {
     round1: Vec<Game>, //round of 64
     round2: Vec<Game>, //round of 32
@@ -41,7 +40,6 @@ struct Bracket {
     score: f64,
     adj_score: f64,
 }
-//todo impl Bracket score, pass in reference to seed_lookup
 
 fn main() {
 
@@ -64,16 +62,8 @@ fn main() {
     ];
     let round3: [[i32; 8]; 2] = [[1, 16, 8, 9, 5, 12, 4, 13], [6, 11, 3, 14, 7, 10, 2, 15]];
     let round4: [[i32; 16]; 1] = [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]];
-
     //put arrays into struct to make it easy to feed multiple arrays into Bracket functions
     let rounds = Rounds{round1: round1, round2: round2, round3: round3, round4: round4};
-
-    //use pop method to remove last char of string, it returns it in an Option Some(T)
-    // remove_matches method will take out strings
-    //let x: &[_] = &['1', '2'];
-    // assert_eq!("12foo1bar12".trim_matches(x), "foo1bar");
-    //assert_eq!("1foo1barXX".trim_matches(|c| c == '1' || c == 'X'), "foo1bar");
-    //assert!(zero.is_ascii_digit());
 
     let file_path = "/Users/corydkiser/Documents/ncaa/fivethirtyeight_ncaa_forecasts.csv";
     //.expect below goes from Ok(T) to T
@@ -108,7 +98,7 @@ fn main() {
         if mensrecords[i][16].ends_with("a") || mensrecords[i][16].ends_with("b") {
             //let length = mensrecords[i][16].len();
             let mut tempstring = mensrecords[i][16].to_string();
-            tempstring.pop(); //this returns the removed value
+            tempstring.pop();
             seed[i] = tempstring.parse().unwrap(); //populate team seed array
         } else{
             seed[i] = mensrecords[i][16].parse().unwrap();
@@ -159,19 +149,50 @@ fn main() {
     let regions: Vec<Vec<u32>> = vec![east, west, midwest, south];
 
 
+    let mut top: Vec<Bracket> = Vec::with_capacity(200);
     for _ in 0..1000000 {
         //let game1 = new_game(2305, 2250, &rating_lookup);
         let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
-        println!("{:?}", name_lookup.get(&b1.winner).unwrap());
-        println!("{:?}", b1.adj_score);
-        println!();
+        //let _ = values.into_iter().min_by(|a, b| a.partial_cmp(b).unwrap());
+        top.push(b1);
+        top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
+        if top.len() > 100{
+            top.pop();
+        }
     }
+
+    for bracket in top{
+        print_bracket(&bracket, &name_lookup)
+    }
+
 
 }
 
-fn print_bracket(bracket: &Bracket, name_lookup: HashMap<u32, &String>){
+fn print_bracket(bracket: &Bracket, name_lookup: &HashMap<u32, &String>){
+    for game in &bracket.round1{
+        println!("{:?}", name_lookup.get(&game.winner).unwrap());
+    }
+    println!();
+    for game in &bracket.round2{
+        println!("{:?}", name_lookup.get(&game.winner).unwrap());
+    }
+    println!();
+    for game in &bracket.round3{
+        println!("{:?}", name_lookup.get(&game.winner).unwrap());
+    }
+    println!();
+    for game in &bracket.round4{
+        println!("{:?}", name_lookup.get(&game.winner).unwrap());
+    }
+    println!();
+    for game in &bracket.round5{
+        println!("{:?}", name_lookup.get(&game.winner).unwrap());
+    }
+    println!();
     println!("{:?}", name_lookup.get(&bracket.winner).unwrap());
     println!("{:?}", bracket.adj_score);
+    println!("{:?}", bracket.score);
+    println!("___________END____________");
     println!();
 }
 
@@ -190,13 +211,11 @@ fn new_game(
     let team2rating = rating_lookup.get(&team2).unwrap();
     let team1winprob = win_prob(team1rating, team2rating);
     let team2winprob = 1.0 - team1winprob;
-
+    //rand to pick a winner
     let mut rng = rand::thread_rng();
     let y: f64 = rng.gen(); // generates a float between 0 and 1
-
     let mut winner = team1;
     let mut winnerprobtemp = team1winprob;
-
     if team1winprob < y {
         winner = team2;
         winnerprobtemp = team2winprob;
@@ -213,9 +232,8 @@ fn new_game(
     }
 }
 
-//todo new_bracket function pass in reference to roundinfo and regions
+
 fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u32, u32>, rating_lookup: &HashMap<u32, f64>) -> Bracket {
-    //todo change () to Bracket
     let mut games1: Vec<Game> = Vec::with_capacity(32);
     let mut games2: Vec<Game> = Vec::with_capacity(16);
     let mut games3: Vec<Game> = Vec::with_capacity(8);
@@ -298,7 +316,6 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
     games5winners.push(gamesim.winner);
     games5.push(gamesim);
-
     assert!(games5winners.len() == 2);
 
     //FINAL GAME!!!
@@ -328,7 +345,6 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     let round6score: u32 = games6.iter().map(|x|seed_lookup.get(&x.winner).unwrap() * 32).sum();
     let score: f64 = (round1score + round2score + round3score + round4score + round5score + round6score) as f64;
 
-
     Bracket {
         round1: games1, //round of 64
         round2: games2, //round of 32
@@ -341,11 +357,4 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
         score: score,
         adj_score: prob * score,
     }
-
-
-
 }
-
-
-//todo score_bracket function pass in reference to seed_lookup
-//todo print_bracket pass in reference to name_lookup
