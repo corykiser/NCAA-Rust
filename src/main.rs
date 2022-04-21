@@ -1,12 +1,10 @@
-mod game;
-
 extern crate csv;
 use rand::prelude::*;
 
 use csv::StringRecord;
 use std::collections::{HashMap, HashSet};
-use std::{process, thread};
 use std::sync::Arc;
+use std::{process, thread};
 
 struct Game {
     team1: u32,
@@ -39,7 +37,6 @@ struct Bracket {
 }
 
 fn main() {
-
     //structure of tourney
     let round1: [[i32; 2]; 8] = [
         [1, 16],
@@ -60,7 +57,12 @@ fn main() {
     let round3: [[i32; 8]; 2] = [[1, 16, 8, 9, 5, 12, 4, 13], [6, 11, 3, 14, 7, 10, 2, 15]];
     let round4: [[i32; 16]; 1] = [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]];
     //put arrays into struct to make it easy to feed multiple arrays into Bracket functions
-    let rounds = Rounds{round1: round1, round2: round2, round3: round3, round4: round4};
+    let rounds = Rounds {
+        round1: round1,
+        round2: round2,
+        round3: round3,
+        round4: round4,
+    };
 
     //todo import ESPN Who Picked Whom
 
@@ -99,7 +101,7 @@ fn main() {
             let mut tempstring = mensrecords[i][16].to_string();
             tempstring.pop();
             seed[i] = tempstring.parse().unwrap(); //populate team seed array
-        } else{
+        } else {
             seed[i] = mensrecords[i][16].parse().unwrap();
         }
     }
@@ -123,24 +125,24 @@ fn main() {
 
     //println!("{}", seed_lookup.get(&2250).unwrap());
 
-    let mut east: Vec<u32>= Vec::with_capacity(16);
-    let mut midwest: Vec<u32>= Vec::with_capacity(16);
-    let mut south: Vec<u32>= Vec::with_capacity(16);
-    let mut west: Vec<u32>= Vec::with_capacity(16);
+    let mut east: Vec<u32> = Vec::with_capacity(16);
+    let mut midwest: Vec<u32> = Vec::with_capacity(16);
+    let mut south: Vec<u32> = Vec::with_capacity(16);
+    let mut west: Vec<u32> = Vec::with_capacity(16);
 
     //for some reason match didnt work
     //sloppy, but had to use for-if
     for i in 0..64 {
-        if region.get(i).unwrap().to_owned() == "East".to_string(){
+        if region.get(i).unwrap().to_owned() == "East".to_string() {
             east.push(teamid[i]);
         }
-        if region.get(i).unwrap().to_owned() == "West".to_string(){
+        if region.get(i).unwrap().to_owned() == "West".to_string() {
             west.push(teamid[i]);
         }
-        if region.get(i).unwrap().to_owned() == "Midwest".to_string(){
+        if region.get(i).unwrap().to_owned() == "Midwest".to_string() {
             midwest.push(teamid[i]);
         }
-        if region.get(i).unwrap().to_owned() == "South".to_string(){
+        if region.get(i).unwrap().to_owned() == "South".to_string() {
             south.push(teamid[i]);
         }
     }
@@ -160,8 +162,8 @@ fn main() {
     for _ in 0..8 {
         //use atomic reference counting pointers to pass into threads
         let rounds = Arc::clone(&arc_rounds);
-        let regions= Arc::clone(&arc_regions);
-        let seed_lookup= Arc::clone(&arc_seed_lookup);
+        let regions = Arc::clone(&arc_regions);
+        let seed_lookup = Arc::clone(&arc_seed_lookup);
         let rating_lookup = Arc::clone(&arc_rating_lookup);
         //
         let handle = thread::spawn(move || {
@@ -179,9 +181,8 @@ fn main() {
         handles.push(handle);
     }
 
-
     let mut top2 = vec![];
-    for handle in handles{
+    for handle in handles {
         top2.append(&mut handle.join().unwrap());
     }
     top2.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
@@ -189,30 +190,29 @@ fn main() {
         top2.pop();
     }
 
-    for bracket in top2{
+    for bracket in top2 {
         print_bracket(&bracket, &name_lookup)
     }
-
 }
 
-fn print_bracket(bracket: &Bracket, name_lookup: &HashMap<u32, &String>){
-    for game in &bracket.round1{
+fn print_bracket(bracket: &Bracket, name_lookup: &HashMap<u32, &String>) {
+    for game in &bracket.round1 {
         println!("{:?}", name_lookup.get(&game.winner).unwrap());
     }
     println!();
-    for game in &bracket.round2{
+    for game in &bracket.round2 {
         println!("{:?}", name_lookup.get(&game.winner).unwrap());
     }
     println!();
-    for game in &bracket.round3{
+    for game in &bracket.round3 {
         println!("{:?}", name_lookup.get(&game.winner).unwrap());
     }
     println!();
-    for game in &bracket.round4{
+    for game in &bracket.round4 {
         println!("{:?}", name_lookup.get(&game.winner).unwrap());
     }
     println!();
-    for game in &bracket.round5{
+    for game in &bracket.round5 {
         println!("{:?}", name_lookup.get(&game.winner).unwrap());
     }
     println!();
@@ -229,11 +229,7 @@ fn win_prob(rating1: &f64, rating2: &f64) -> f64 {
     prob
 }
 
-fn new_game(
-    team1: u32,
-    team2: u32,
-    rating_lookup: &HashMap<u32, f64>,
-) -> Game {
+fn new_game(team1: u32, team2: u32, rating_lookup: &HashMap<u32, f64>) -> Game {
     let team1rating = rating_lookup.get(&team1).unwrap();
     let team2rating = rating_lookup.get(&team2).unwrap();
     let team1winprob = win_prob(team1rating, team2rating);
@@ -259,7 +255,12 @@ fn new_game(
     }
 }
 
-fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u32, u32>, rating_lookup: &HashMap<u32, f64>) -> Bracket {
+fn new_bracket(
+    rounds: &Rounds,
+    regions: &Vec<Vec<u32>>,
+    seed_lookup: &HashMap<u32, u32>,
+    rating_lookup: &HashMap<u32, f64>,
+) -> Bracket {
     let mut games1: Vec<Game> = Vec::with_capacity(32);
     let mut games2: Vec<Game> = Vec::with_capacity(16);
     let mut games3: Vec<Game> = Vec::with_capacity(8);
@@ -274,11 +275,14 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     let mut games5winners: Vec<u32> = Vec::with_capacity(2);
     let mut games6winners: Vec<u32> = Vec::with_capacity(1);
 
-    for region in regions{
-        for game in rounds.round1{
+    for region in regions {
+        for game in rounds.round1 {
             //look in the winners list for teams in correct region and that meet seed criteria
-            let matchup: Vec<&u32> = region.iter().filter(|x| game.contains(&(*seed_lookup.get(x).unwrap() as i32))).collect();
-            let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
+            let matchup: Vec<&u32> = region
+                .iter()
+                .filter(|x| game.contains(&(*seed_lookup.get(x).unwrap() as i32)))
+                .collect();
+            let gamesim = new_game(*matchup[0], *matchup[1], &rating_lookup);
             games1winners.push(gamesim.winner);
             games1.push(gamesim);
         }
@@ -286,33 +290,48 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     //confirm 32 games are in games1 vec
     assert!(games1winners.len() == 32);
 
-    for region in regions{
-        for game in rounds.round2{
+    for region in regions {
+        for game in rounds.round2 {
             //look in the winners list for teams in correct region and that meet seed criteria
-            let matchup: Vec<&u32> = games1winners.iter().filter(|x| region.contains(x) && game.contains(&(*seed_lookup.get(x).unwrap() as i32))).collect();
-            let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
+            let matchup: Vec<&u32> = games1winners
+                .iter()
+                .filter(|x| {
+                    region.contains(x) && game.contains(&(*seed_lookup.get(x).unwrap() as i32))
+                })
+                .collect();
+            let gamesim = new_game(*matchup[0], *matchup[1], &rating_lookup);
             games2winners.push(gamesim.winner);
             games2.push(gamesim);
         }
     }
     assert!(games2winners.len() == 16);
 
-    for region in regions{
-        for game in rounds.round3{
+    for region in regions {
+        for game in rounds.round3 {
             //look in the winners list for teams in correct region and that meet seed criteria
-            let matchup: Vec<&u32> = games2winners.iter().filter(|x| region.contains(x) && game.contains(&(*seed_lookup.get(x).unwrap() as i32))).collect();
-            let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
+            let matchup: Vec<&u32> = games2winners
+                .iter()
+                .filter(|x| {
+                    region.contains(x) && game.contains(&(*seed_lookup.get(x).unwrap() as i32))
+                })
+                .collect();
+            let gamesim = new_game(*matchup[0], *matchup[1], &rating_lookup);
             games3winners.push(gamesim.winner);
             games3.push(gamesim);
         }
     }
     assert!(games3winners.len() == 8);
 
-    for region in regions{
-        for game in rounds.round4{
+    for region in regions {
+        for game in rounds.round4 {
             //look in the winners list for teams in correct region and that meet seed criteria
-            let matchup: Vec<&u32> = games3winners.iter().filter(|x| region.contains(x) && game.contains(&(*seed_lookup.get(x).unwrap() as i32))).collect();
-            let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
+            let matchup: Vec<&u32> = games3winners
+                .iter()
+                .filter(|x| {
+                    region.contains(x) && game.contains(&(*seed_lookup.get(x).unwrap() as i32))
+                })
+                .collect();
+            let gamesim = new_game(*matchup[0], *matchup[1], &rating_lookup);
             games4winners.push(gamesim.winner);
             games4.push(gamesim);
         }
@@ -320,19 +339,25 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     assert!(games4winners.len() == 4);
 
     //Match South with Midwest
-    let matchup: Vec<&u32> = games4winners.iter().filter(|x| regions[0].contains(x) || regions[1].contains(x)).collect();
-    let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
+    let matchup: Vec<&u32> = games4winners
+        .iter()
+        .filter(|x| regions[0].contains(x) || regions[1].contains(x))
+        .collect();
+    let gamesim = new_game(*matchup[0], *matchup[1], &rating_lookup);
     games5winners.push(gamesim.winner);
     games5.push(gamesim);
     // match east and west
-    let matchup: Vec<&u32> = games4winners.iter().filter(|x| regions[2].contains(x) || regions[3].contains(x)).collect();
-    let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
+    let matchup: Vec<&u32> = games4winners
+        .iter()
+        .filter(|x| regions[2].contains(x) || regions[3].contains(x))
+        .collect();
+    let gamesim = new_game(*matchup[0], *matchup[1], &rating_lookup);
     games5winners.push(gamesim.winner);
     games5.push(gamesim);
     assert!(games5winners.len() == 2);
 
     //FINAL GAME!!!
-    let gamesim = new_game(games5winners[0],games5winners[1] ,&rating_lookup);
+    let gamesim = new_game(games5winners[0], games5winners[1], &rating_lookup);
     let winner = gamesim.winner;
     games6winners.push(gamesim.winner);
     games6.push(gamesim);
@@ -341,22 +366,40 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     //SIMULATIONS OVER
 
     //Probability Calculations
-    let round1prob: f64 = games1.iter().map(|x|x.winnerprob).product();
-    let round2prob: f64 = games2.iter().map(|x|x.winnerprob).product();
-    let round3prob: f64 = games3.iter().map(|x|x.winnerprob).product();
-    let round4prob: f64 = games4.iter().map(|x|x.winnerprob).product();
-    let round5prob: f64 = games5.iter().map(|x|x.winnerprob).product();
-    let round6prob: f64 = games6.iter().map(|x|x.winnerprob).product();
+    let round1prob: f64 = games1.iter().map(|x| x.winnerprob).product();
+    let round2prob: f64 = games2.iter().map(|x| x.winnerprob).product();
+    let round3prob: f64 = games3.iter().map(|x| x.winnerprob).product();
+    let round4prob: f64 = games4.iter().map(|x| x.winnerprob).product();
+    let round5prob: f64 = games5.iter().map(|x| x.winnerprob).product();
+    let round6prob: f64 = games6.iter().map(|x| x.winnerprob).product();
     let prob = round1prob * round2prob * round3prob * round4prob * round5prob * round6prob;
 
-
-    let round1score: u32 = games1.iter().map(|x|seed_lookup.get(&x.winner).unwrap() + 1).sum();
-    let round2score: u32 = games2.iter().map(|x|seed_lookup.get(&x.winner).unwrap() + 2).sum();
-    let round3score: u32 = games3.iter().map(|x|seed_lookup.get(&x.winner).unwrap() + 4).sum();
-    let round4score: u32 = games4.iter().map(|x|seed_lookup.get(&x.winner).unwrap() * 8).sum();
-    let round5score: u32 = games5.iter().map(|x|seed_lookup.get(&x.winner).unwrap() * 16).sum();
-    let round6score: u32 = games6.iter().map(|x|seed_lookup.get(&x.winner).unwrap() * 32).sum();
-    let score: f64 = (round1score + round2score + round3score + round4score + round5score + round6score) as f64;
+    let round1score: u32 = games1
+        .iter()
+        .map(|x| seed_lookup.get(&x.winner).unwrap() + 1)
+        .sum();
+    let round2score: u32 = games2
+        .iter()
+        .map(|x| seed_lookup.get(&x.winner).unwrap() + 2)
+        .sum();
+    let round3score: u32 = games3
+        .iter()
+        .map(|x| seed_lookup.get(&x.winner).unwrap() + 4)
+        .sum();
+    let round4score: u32 = games4
+        .iter()
+        .map(|x| seed_lookup.get(&x.winner).unwrap() * 8)
+        .sum();
+    let round5score: u32 = games5
+        .iter()
+        .map(|x| seed_lookup.get(&x.winner).unwrap() * 16)
+        .sum();
+    let round6score: u32 = games6
+        .iter()
+        .map(|x| seed_lookup.get(&x.winner).unwrap() * 32)
+        .sum();
+    let score: f64 =
+        (round1score + round2score + round3score + round4score + round5score + round6score) as f64;
 
     Bracket {
         round1: games1, //round of 64
