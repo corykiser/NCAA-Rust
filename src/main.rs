@@ -158,9 +158,10 @@ fn main() {
     let arc_seed_lookup = Arc::new(seed_lookup);
     let arc_rating_lookup = Arc::new(rating_lookup);
 
-    //use 8 threads
-    let num_threads = 8;
-    let num_calculations= 100000;
+    //find number of processor cores
+    let num_threads = num_cpus::get();
+    //number of calculations per thread
+    let num_calculations= 10000000;
     for _ in 0..num_threads {
         //use atomic reference counting pointers to pass into threads
         let rounds = Arc::clone(&arc_rounds);
@@ -173,7 +174,7 @@ fn main() {
             for _ in 0..num_calculations {
                 let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
                 top.push(b1);
-                top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
+                top.sort_unstable_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
                 if top.len() > 100 {
                     top.pop();
                 }
@@ -187,7 +188,7 @@ fn main() {
     for handle in handles {
         top2.append(&mut handle.join().unwrap());
     }
-    top2.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
+    top2.sort_unstable_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
     while top2.len() > 100 {
         top2.pop();
     }
@@ -195,6 +196,7 @@ fn main() {
     for bracket in top2 {
         print_bracket(&bracket, &name_lookup)
     }
+    println!("Completed with {} simulations.",num_threads * num_calculations)
 }
 
 fn print_bracket(bracket: &Bracket, name_lookup: &HashMap<u32, &String>) {
