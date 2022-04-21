@@ -5,6 +5,7 @@ use csv::StringRecord;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::{process, thread};
+use fnv::FnvHashMap;
 
 struct Game {
     team1: u32,
@@ -161,7 +162,7 @@ fn main() {
     //find number of processor cores
     let num_threads = num_cpus::get();
     //number of calculations per thread
-    let num_calculations= 10000000;
+    let num_calculations= 100000;
     for _ in 0..num_threads {
         //use atomic reference counting pointers to pass into threads
         let rounds = Arc::clone(&arc_rounds);
