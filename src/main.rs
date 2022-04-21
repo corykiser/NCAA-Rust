@@ -5,15 +5,8 @@ use rand::prelude::*;
 
 use csv::StringRecord;
 use std::collections::{HashMap, HashSet};
-//use std::env;
-//use std::error::Error;
-//use std::ffi::OsString;
-//use std::fs::File;
 use std::{process, thread};
 use std::sync::Arc;
-use crossbeam;
-//use rayon::ThreadPool;
-//use rayon::prelude::*;
 
 struct Game {
     team1: u32,
@@ -69,10 +62,12 @@ fn main() {
     //put arrays into struct to make it easy to feed multiple arrays into Bracket functions
     let rounds = Rounds{round1: round1, round2: round2, round3: round3, round4: round4};
 
+    //todo import ESPN Who Picked Whom
+
+    //todo check if file exists and download if it doesn't exist
     let file_path = "/Users/corydkiser/Documents/ncaa/fivethirtyeight_ncaa_forecasts.csv";
     //.expect below goes from Ok(T) to T
     let mut rdr = csv::Reader::from_path(file_path).expect("file access error");
-
     let mut mensrecords: Vec<StringRecord> = Vec::new();
     // Loop over each record.
     for result in rdr.records() {
@@ -152,29 +147,16 @@ fn main() {
     // combine regions into one vector to make it easy to pass into functions
     let regions: Vec<Vec<u32>> = vec![east, west, midwest, south];
 
-
-
-
-    // for _ in 0..100000 {
-    //     //let game1 = new_game(2305, 2250, &rating_lookup);
-    //     let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
-    //     //let _ = values.into_iter().min_by(|a, b| a.partial_cmp(b).unwrap());
-    //     top.push(b1);
-    //     //reverse sort
-    //     //todo fix parallel
-    //     top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
-    //     if top.len() > 100{
-    //         top.pop();
-    //     }
-    // }
+    //thread pool
     let mut handles = vec![];
 
+    //prep data for multiple ownership to pass into threads
     let arc_rounds = Arc::new(rounds);
     let arc_regions = Arc::new(regions);
     let arc_seed_lookup = Arc::new(seed_lookup);
     let arc_rating_lookup = Arc::new(rating_lookup);
 
-
+    //use 8 threads
     for _ in 0..8 {
         //use atomic reference counting pointers to pass into threads
         let rounds = Arc::clone(&arc_rounds);
@@ -184,7 +166,7 @@ fn main() {
         //
         let handle = thread::spawn(move || {
             let mut top: Vec<Bracket> = Vec::with_capacity(200);
-            for _ in 0..1000000 {
+            for _ in 0..100000 {
                 let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
                 top.push(b1);
                 top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
@@ -198,16 +180,16 @@ fn main() {
     }
 
 
-    let mut top = vec![];
+    let mut top2 = vec![];
     for handle in handles{
-        top.append(&mut handle.join().unwrap());
+        top2.append(&mut handle.join().unwrap());
     }
-    top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
-    while top.len() > 100 {
-        top.pop();
+    top2.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
+    while top2.len() > 100 {
+        top2.pop();
     }
 
-    for bracket in top{
+    for bracket in top2{
         print_bracket(&bracket, &name_lookup)
     }
 
@@ -285,8 +267,6 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     let mut games5: Vec<Game> = Vec::with_capacity(2);
     let mut games6: Vec<Game> = Vec::with_capacity(1);
 
-    let mut checklist: HashSet<u32> = HashSet::with_capacity(64);
-
     let mut games1winners: Vec<u32> = Vec::with_capacity(32);
     let mut games2winners: Vec<u32> = Vec::with_capacity(16);
     let mut games3winners: Vec<u32> = Vec::with_capacity(8);
@@ -294,27 +274,17 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     let mut games5winners: Vec<u32> = Vec::with_capacity(2);
     let mut games6winners: Vec<u32> = Vec::with_capacity(1);
 
-    for region in regions{ //for each region
+    for region in regions{
         for game in rounds.round1{
-            for team1 in region{
-                if game[0] as u32 == *seed_lookup.get(team1).unwrap(){
-                    for team2 in region{
-                        if game[1] as u32 == *seed_lookup.get(team2).unwrap() && !checklist.contains(team1) && !checklist.contains(team2){
-                            let gamesim = new_game(*team1,*team2,&rating_lookup);
-                            games1winners.push(gamesim.winner);
-                            games1.push(gamesim);
-                            checklist.insert(*team1);
-                            checklist.insert(*team2);
-                        }
-                    }
-                }
-            }
+            //look in the winners list for teams in correct region and that meet seed criteria
+            let matchup: Vec<&u32> = region.iter().filter(|x| game.contains(&(*seed_lookup.get(x).unwrap() as i32))).collect();
+            let gamesim = new_game(*matchup[0],*matchup[1] ,&rating_lookup);
+            games1winners.push(gamesim.winner);
+            games1.push(gamesim);
         }
     }
     //confirm 32 games are in games1 vec
     assert!(games1winners.len() == 32);
-    assert!(checklist.len() == 64);
-    checklist.clear();
 
     for region in regions{
         for game in rounds.round2{
