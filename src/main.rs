@@ -5,11 +5,14 @@ use rand::prelude::*;
 
 use csv::StringRecord;
 use std::collections::{HashMap, HashSet};
-use std::env;
-use std::error::Error;
-use std::ffi::OsString;
-use std::fs::File;
-use std::process;
+//use std::env;
+//use std::error::Error;
+//use std::ffi::OsString;
+//use std::fs::File;
+use std::{process, thread};
+use std::sync::Arc;
+use crossbeam;
+//use rayon::ThreadPool;
 //use rayon::prelude::*;
 
 struct Game {
@@ -22,6 +25,7 @@ struct Game {
     winnerprob: f64,
     winner: u32,
 }
+#[derive(Debug, Copy, Clone)]
 struct Rounds {
     round1: [[i32; 2]; 8],
     round2: [[i32; 4]; 4],
@@ -149,22 +153,63 @@ fn main() {
     let regions: Vec<Vec<u32>> = vec![east, west, midwest, south];
 
 
-    let mut top: Vec<Bracket> = Vec::with_capacity(200);
-    for _ in 0..1000000 {
-        //let game1 = new_game(2305, 2250, &rating_lookup);
-        let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
-        //let _ = values.into_iter().min_by(|a, b| a.partial_cmp(b).unwrap());
-        top.push(b1);
-        top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
-        if top.len() > 100{
-            top.pop();
-        }
+
+
+    // for _ in 0..100000 {
+    //     //let game1 = new_game(2305, 2250, &rating_lookup);
+    //     let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
+    //     //let _ = values.into_iter().min_by(|a, b| a.partial_cmp(b).unwrap());
+    //     top.push(b1);
+    //     //reverse sort
+    //     //todo fix parallel
+    //     top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
+    //     if top.len() > 100{
+    //         top.pop();
+    //     }
+    // }
+    let mut handles = vec![];
+
+    let arc_rounds = Arc::new(rounds);
+    let arc_regions = Arc::new(regions);
+    let arc_seed_lookup = Arc::new(seed_lookup);
+    let arc_rating_lookup = Arc::new(rating_lookup);
+
+
+    for _ in 0..8 {
+        //use atomic reference counting pointers to pass into threads
+        let rounds = Arc::clone(&arc_rounds);
+        let regions= Arc::clone(&arc_regions);
+        let seed_lookup= Arc::clone(&arc_seed_lookup);
+        let rating_lookup = Arc::clone(&arc_rating_lookup);
+        //
+        let handle = thread::spawn(move || {
+            let mut top: Vec<Bracket> = Vec::with_capacity(200);
+            for _ in 0..1000000 {
+                let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
+                top.push(b1);
+                top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
+                if top.len() > 100 {
+                    top.pop();
+                }
+            }
+            top
+        });
+        handles.push(handle);
+    }
+
+
+    let mut top = vec![];
+    for handle in handles{
+        top.append(&mut handle.join().unwrap());
+    }
+    top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
+    while top.len() > 100 {
+        top.pop();
     }
 
     for bracket in top{
         print_bracket(&bracket, &name_lookup)
     }
-
 
 }
 
@@ -232,7 +277,6 @@ fn new_game(
     }
 }
 
-
 fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u32, u32>, rating_lookup: &HashMap<u32, f64>) -> Bracket {
     let mut games1: Vec<Game> = Vec::with_capacity(32);
     let mut games2: Vec<Game> = Vec::with_capacity(16);
@@ -253,7 +297,6 @@ fn new_bracket(rounds: &Rounds, regions: &Vec<Vec<u32>>, seed_lookup: &HashMap<u
     for region in regions{ //for each region
         for game in rounds.round1{
             for team1 in region{
-                let x = *seed_lookup.get(team1).unwrap();
                 if game[0] as u32 == *seed_lookup.get(team1).unwrap(){
                     for team2 in region{
                         if game[1] as u32 == *seed_lookup.get(team2).unwrap() && !checklist.contains(team1) && !checklist.contains(team2){
