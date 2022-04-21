@@ -159,7 +159,9 @@ fn main() {
     let arc_rating_lookup = Arc::new(rating_lookup);
 
     //use 8 threads
-    for _ in 0..8 {
+    let num_threads = 8;
+    let num_calculations= 100000;
+    for _ in 0..num_threads {
         //use atomic reference counting pointers to pass into threads
         let rounds = Arc::clone(&arc_rounds);
         let regions = Arc::clone(&arc_regions);
@@ -168,7 +170,7 @@ fn main() {
         //
         let handle = thread::spawn(move || {
             let mut top: Vec<Bracket> = Vec::with_capacity(200);
-            for _ in 0..100000 {
+            for _ in 0..num_calculations {
                 let b1 = new_bracket(&rounds, &regions, &seed_lookup, &rating_lookup);
                 top.push(b1);
                 top.sort_by(|a, b| b.adj_score.partial_cmp(&a.adj_score).unwrap());
@@ -277,7 +279,7 @@ fn new_bracket(
 
     for region in regions {
         for game in rounds.round1 {
-            //look in the winners list for teams in correct region and that meet seed criteria
+            //look in the teams list for teams in correct region and that meet seed criteria
             let matchup: Vec<&u32> = region
                 .iter()
                 .filter(|x| game.contains(&(*seed_lookup.get(x).unwrap() as i32)))
@@ -374,6 +376,7 @@ fn new_bracket(
     let round6prob: f64 = games6.iter().map(|x| x.winnerprob).product();
     let prob = round1prob * round2prob * round3prob * round4prob * round5prob * round6prob;
 
+    //score calculation
     let round1score: u32 = games1
         .iter()
         .map(|x| seed_lookup.get(&x.winner).unwrap() + 1)
