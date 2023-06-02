@@ -8,6 +8,8 @@ Built with the super-efficient Rust programming language, my software has the ca
 
 Boost your chances in the next March Madness pool with my advanced prediction software! 🚀
 
+----------------------------------------------------------------------------------------------------
+
 MIT License
 
 Copyright (c) [year] [fullname]
